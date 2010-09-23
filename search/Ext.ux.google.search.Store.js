@@ -200,6 +200,7 @@ Ext.extend(Ext.ux.google.search.Store, Ext.data.Store, {
       this.proxy.on('avaialble', function(t){
         t.setActiveSearcher(s);
       });
+      return true;
     }
   },
 
