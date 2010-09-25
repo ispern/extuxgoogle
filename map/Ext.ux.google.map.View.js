@@ -57,9 +57,11 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
             point: google.maps.Point,
             event: google.maps.event,
             infowindow: google.maps.InfoWindow,
-            clientgeocoder: google.maps.geocoder,
+            geocoder: google.maps.geocoder,
             scalecontrol: google.maps.ScaleControl,
-            overviewcontrol: google.maps.OverviewControl
+            overviewcontrol: google.maps.OverviewControl,
+            directionsservice: google.maps.DirectionsService,
+            directionsrenderer: google.maps.DirectionsRenderer
         };
 
         /*
@@ -98,8 +100,25 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
          * wrapper for Google Maps API map type controls 
          */
         Ext.ux.google.map.View.prototype._maptypecontrols = {
-            horizontalBar: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-            dropDownMenu: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+            horizontalbar: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+            dropdownmenu: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+        };
+
+        /*
+         * wrapper for Google Maps API directions service travel mode
+         */
+        Ext.ux.google.map.View.prototype._directionstravelmode = {
+            walking: google.maps.DirectionsTravelMode.WALKING,
+            driving: google.maps.DirectionsTravelMode.DRIVING,
+            bicycling: google.maps.DirectionsTravelMode.BICYCLING
+        };
+
+        /*
+         * wrapper for Google Maps API directions service unit system
+         */
+        Ext.ux.google.map.View.prototype._directionsunitsystem = {
+            metric: google.maps.DirectionsUnitSystem.METRIC,
+            inperial: google.maps.DirectionsUnitSystem.IMPERIAL
         };
 
         _mapapiinitialized = true;
@@ -188,6 +207,29 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
         return;
     };
 
+    var initDirections = function() {
+        var prot = Ext.ux.google.map.View.prototype;
+        var G = prot._G;
+
+        // defer until the map is renderred
+        if (!this.map) {
+            this.on('render', function (t) {
+                t.initDirections();
+            });
+            return;
+        }
+
+        if (this.waypoints) {
+            this.waypoints.clear();
+        }
+        this.directionsService = new G.directionsservice();
+
+        var cfg = this.directionsConfig || {};
+        this.directionsRenderer = new G.directionsrenderer(cfg);
+
+        this.directionsRenderer.setMap(this.map);
+    };
+
     return {
 
         ver: '3',
@@ -263,6 +305,22 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
             mapTypeId: 'roadmap'
         },
 
+        directionsConfig: {
+            travelMode: 'walking',
+            unitSystem: 'metric',
+            region: 'jp'
+        },
+
+        polylineConfig: {
+            draggable: true,
+            polylineOptions: {
+                clickable: true,
+                strokeColor: '#3FFF17',
+                strokeOpacity: 0.5,
+                strokeWeight: 3
+            }
+        },
+
         /**
          * Create a new Ext.ux.google.map.View
          * @method View
@@ -274,6 +332,12 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
                 Ext.applyIf(this.mapConfig, Ext.ux.google.map.View.prototype.mapConfig);
                 Ext.applyIf(this.mapConfig.controls, Ext.ux.google.map.View.prototype.mapConfig.controls);
                 Ext.applyIf(this.mapConfig.mapTypeId, Ext.ux.google.map.View.prototype.mapConfig.mapTypeId);
+            }
+            if (this.directionsConfig) {
+                Ext.applyIf(this.directionsConfig, Ext.ux.google.map.View.prototype.directionsConfig);
+            }
+            if (this.polylineConfig) {
+                Ext.applyIf(this.polylineConfig, Ext.ux.google.map.View.prototype.polylineConfig);
             }
         },
 
@@ -453,6 +517,11 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
                 return o.rec_id;
             };
 
+            this.waypoints = new Ext.util.MixedCollection(false);
+            this.waypoints.getKey = function(o) {
+                return o.rec_id;
+            };
+
             try {
                 // if API initialization succeeds, then render map and markers
                 this.initMapApi({
@@ -460,12 +529,12 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
                     callback: function () {
                         renderMap.call(this);
                         renderMarkers.call(this);
+                        initDirections.call(this);
                     }
                 });
             } catch (e) {
                 console.log(e);
             }
-            console.log('render finish');
         },
 
         // overriden method to dynamically bind Map related events when necessary
@@ -843,6 +912,43 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
             if (mrk && mrk.infowindow) {
                 mrk.infowindow.open(this.map, mrk);
             }
+        },
+
+        setOrigin: function(origin) {
+            this.origin = origin;
+        },
+
+        setDestination: function(destination) {
+            this.destination = destination;
+        },
+
+        addWayPoint: function(latlng) {
+            this.wayPoints.add(latlng);
+        },
+
+        calcRoot: function() {
+            var me = this;
+            var prot = Ext.ux.google.map.View.prototype;
+            var G = prot._G;
+
+            var waypoints = [];
+            me.wayPoints.each(function(item) {
+                waypoints.push(item);
+            });
+            option = {
+                travelMode: prot[me.directionsConfig.travelMode],
+                unitSystem: prot[me.directionsConfig.unitSystem],
+                region: me.directionsConfig.region,
+                origin: me.origin,
+                destination: me.destination,
+                waypoints: waypoints
+            };
+
+            me.directionsService.route(option, function(result, status) {
+                if (status == google.maps.DirectionsStatus.OK) {
+                    me.directionsRenderer.setDirections(result);
+                }
+            });
         },
 
         /**
