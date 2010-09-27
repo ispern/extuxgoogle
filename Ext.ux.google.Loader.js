@@ -33,6 +33,7 @@ Ext.namespace('Ext.ux.google');
 Ext.ux.google.Loader = function () {
     // loading status for more than one type of apis
     var loading = {};
+    var loadingScript = false;
 
     // check if given api is supported api 
     var checkApi = function (api) {
@@ -58,6 +59,10 @@ Ext.ux.google.Loader = function () {
         return loading[api] ? true : false;
     };
 
+    var isLoadingScript = function() {
+        return loadingScript;
+    };
+
     // load Google AJAX API specified by cfg using google.load() method
     var load = function (cfg) {
         // cfg must have "api" and "ver" and optinally "callback", "scope", "args"
@@ -72,6 +77,7 @@ Ext.ux.google.Loader = function () {
                 var option = Ext.applyIf(cfg.option, {
                     callback: function () {
                         loading[api] = false;
+                        loadingScript = false;
                         if (google[api] && cfg.callback) {
                             cfg.callback.apply(cfg.scope || this, cfg.args || []);
                         } else {
@@ -85,15 +91,18 @@ Ext.ux.google.Loader = function () {
                 google.load(api, ver, option);
             } catch (e) {
                 loading[api] = false;
+                loadingScript = false;
                 throw e;
             }
         } else {
+            loadingScript = false;
             throw Ext.ux.google.Loader.INVALIDAPI;
         }
     };
 
     // creates a script tag to load google.loader
     var loadScript = function (cfg) {
+        loadingScript = true;
         var cb = 'extuxgoogleCallback' + (new Date()).getTime();
 
         // callback when google.loader is loaded
@@ -133,10 +142,10 @@ Ext.ux.google.Loader = function () {
                 }
                 return;
                 // If api is currently being loaded, wait and do the rest
-            } else if (isLoading(cfg.api)) {
+            } else if (isLoading(cfg.api) || isLoadingScript()) {
                 var task = {
                     run: function () {
-                        if (!isLoading(cfg.api)) {
+                        if (!isLoading(cfg.api) && !isLoadingScript()) {
                             if (cfg.callback) {
                                 cfg.callback.apply(cfg.scope || this, cfg.args || []);
                             }
@@ -157,12 +166,8 @@ Ext.ux.google.Loader = function () {
                 }
                 // If both api and loader are not available, try to create a script tag with given Api key
             } else {
-                if (cfg.apiKey) {
-                    loadScript(cfg);
-                    throw Ext.ux.google.Loader.LOADING;
-                } else {
-                    throw Ext.ux.google.Loader.UNAVAILABLE;
-                }
+                loadScript(cfg);
+                throw Ext.ux.google.Loader.LOADING;
             }
         },
 
