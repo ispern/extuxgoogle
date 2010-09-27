@@ -57,7 +57,7 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
             point: google.maps.Point,
             event: google.maps.event,
             infowindow: google.maps.InfoWindow,
-            geocoder: google.maps.geocoder,
+            geocoder: google.maps.Geocoder,
             scalecontrol: google.maps.ScaleControl,
             overviewcontrol: google.maps.OverviewControl,
             directionsservice: google.maps.DirectionsService,
