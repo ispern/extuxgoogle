@@ -58,7 +58,6 @@ Ext.ux.google.map.Proxy = Ext.extend(Ext.data.DataProxy, function() {
                         return callback.call(scope || me, null, arg, false);
                     }
 
-
                     callback.call(scope || me, result, arg, true);
 
                     return data.length;

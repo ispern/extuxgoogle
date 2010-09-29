@@ -141,6 +141,8 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
 
         var cfg = this.mapConfig || {};
 
+        cfg.mapTypeId = prot._maptypes[cfg.mapTypeId];
+
         // Creates a map on "this.el.dom"
         var map = new G.map(this.el.dom, cfg);
 
@@ -923,27 +925,24 @@ Ext.ux.google.map.View = Ext.extend(Ext.DataView, function () {
         },
 
         addWayPoint: function(latlng) {
-            this.wayPoints.add(latlng);
+            this.waypoints.add(latlng);
         },
 
-        calcRoot: function() {
+        calcRoute: function() {
             var me = this;
             var prot = Ext.ux.google.map.View.prototype;
             var G = prot._G;
 
-            var waypoints = [];
-            me.wayPoints.each(function(item) {
-                waypoints.push(item);
-            });
             option = {
-                travelMode: prot[me.directionsConfig.travelMode],
-                unitSystem: prot[me.directionsConfig.unitSystem],
+                travelMode: prot._directionstravelmode[me.directionsConfig.travelMode],
+                unitSystem: prot._directionsunitsystem[me.directionsConfig.unitSystem],
                 region: me.directionsConfig.region,
                 origin: me.origin,
                 destination: me.destination,
-                waypoints: waypoints
+                waypoints: me.waypoints.items
             };
 
+            console.log(option);
             me.directionsService.route(option, function(result, status) {
                 if (status == google.maps.DirectionsStatus.OK) {
                     me.directionsRenderer.setDirections(result);
